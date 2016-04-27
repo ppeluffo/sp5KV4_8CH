@@ -23,18 +23,18 @@ static int gTR_C11(void);
 static int gTR_C12(void);
 static int gTR_C13(void);
 static int gTR_C14(void);
-static int gTR_C15(void);
 
 // Eventos locales al estado SOCKET
 typedef enum {
 	c_ev_CTIMER_NOT_0 = 0,
 	c_ev_P_TRYES_NOT_0,
 	c_ev_Q_TRYES_NOT_0,
-	c_ev_SOCK_IS_OPEN
+	c_ev_SOCK_IS_OPEN,
+	c_ev_SOCK_ERROR
 
 } t_ssSock_eventos;
 
-#define ssSOCK_EVENT_COUNT 4
+#define ssSOCK_EVENT_COUNT 5
 
 
 //------------------------------------------------------------------------------------
@@ -65,7 +65,14 @@ u08 i;
 	if ( GPRS_counters.qTryes > 0 ) { c_eventos[c_ev_Q_TRYES_NOT_0] = TRUE; }
 	// ev_SOCK_IS_OPEN	CONNECT
 	if ( GPRS_flags.socketStatus == SOCKET_OPEN ) { c_eventos[c_ev_SOCK_IS_OPEN] = TRUE; }
-
+	// ev_SOCK_ERROR
+	if ( GPRS_flags.modemResponse == MRSP_ERROR ) { c_eventos[c_ev_SOCK_ERROR] = TRUE; }
+	//
+	// MSG_RELOAD
+	if ( GPRS_flags.msgReload == TRUE ) {
+		void g_reloadConfig(void);
+		return;
+	}
 
 	switch ( tkGprs_subState ) {
 	case gSST_SOCKET_00:
@@ -98,6 +105,8 @@ u08 i;
 	case gSST_SOCKET_05:
 		if ( c_eventos[c_ev_SOCK_IS_OPEN] )  {
 			tkGprs_subState = gTR_C13();
+		} else if ( c_eventos[c_ev_SOCK_ERROR] ) {
+			tkGprs_subState = gTR_C14();
 		} else {
 			tkGprs_subState = gTR_C08();
 		}
@@ -116,18 +125,11 @@ u08 i;
 			tkGprs_subState = gTR_C10();
 		}
 		break;
-	case gSST_SOCKET_08:
-		if ( c_eventos[c_ev_Q_TRYES_NOT_0] )  {
-			tkGprs_subState = gTR_C15();
-		} else {
-			tkGprs_subState = gTR_C15();
-		}
-		break;
 	default:
 		snprintf_P( gprs_printfBuff,sizeof(gprs_printfBuff),PSTR("\r\ntkGprs::ERROR sst_socket: subState  (%d) NOT DEFINED\r\n\0"),tkGprs_subState);
 		FreeRTOS_write( &pdUART1, gprs_printfBuff, sizeof(gprs_printfBuff) );
 		tkGprs_state = gST_OFF;
-		tkGprs_subState = gSST_OFF_Entry;
+		tkGprs_subState = gSST_OFF_00;
 		break;
 	}
 
@@ -142,18 +144,20 @@ static int gTR_C00(void)
 	FreeRTOS_write( &pdUART1, gprs_printfBuff, sizeof(gprs_printfBuff) );
 
 	// Cierro el socket por las dudas.
-	// Paso primero a modo comando
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_RX_BUFFER, NULL);
+	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_TX_BUFFER, NULL);
+	g_flushRXBuffer();
+
+	// Paso primero a modo comando
 	FreeRTOS_write( &pdUART0, "+++AT\r\0", sizeof("+++AT\r\0") );
 	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
-	// Y mando el comando de cerrar el socket. Si esta cerrado va a responder ERROR pero
-	// no importa
-	g_flushRXBuffer();
+	// Y mando el comando de cerrar el socket. Si esta cerrado va a responder ERROR pero no importa
 	FreeRTOS_write( &pdUART0, "AT*E2IPC=1\r\0", sizeof("AT*E2IPC=1\r\0") );
 	vTaskDelay( ( TickType_t)( 500 / portTICK_RATE_MS ) );
 
-	// Muestro la respuesta del modem
-	g_printRxBuffer();
+	// No muestro la respuesta del modem ya que si esta cerrado va a indicar ERROR y
+	// puede confundir al operador.
+	//g_printRxBuffer();
 
 	g_printExitMsg("C00\0");
 	return(gSST_SOCKET_01);
@@ -168,7 +172,7 @@ static int gTR_C01(void)
 	--GPRS_counters.cTimer;
 
 	//g_printExitMsg("C02\0");
-	return(gSST_SOCKET_01);
+	return(gSST_SOCKET_02);
 }
 //------------------------------------------------------------------------------------
 static int gTR_C02(void)
@@ -179,7 +183,7 @@ static int gTR_C02(void)
 	tkGprs_state = gST_OFF;
 
 	g_printExitMsg("C02\0");
-	return(gSST_OFF_Entry);
+	return(gSST_OFF_00);
 }
 //------------------------------------------------------------------------------------
 static int gTR_C03(void)
@@ -206,12 +210,15 @@ size_t xBytes;
 	GPRS_counters.cTimer = 5;	// Consulto c/5s si abrio el socket
 	GPRS_counters.pTryes = 6;	// Lo hago 6 veces.
 
-	xBytes = snprintf_P( gprs_printfBuff,sizeof(gprs_printfBuff),PSTR("AT*E2IPO=1,\"%s\",%s\r\n\0"),systemVars.serverAddress,systemVars.serverPort);
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_RX_BUFFER, NULL);
-	g_flushRXBuffer();
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_TX_BUFFER, NULL);
+	g_flushRXBuffer();
+
+	GPRS_flags.modemResponse  = MRSP_NONE;
+	xBytes = snprintf_P( gprs_printfBuff,sizeof(gprs_printfBuff),PSTR("AT*E2IPO=1,\"%s\",%s\r\n\0"),systemVars.serverAddress,systemVars.serverPort);
 	FreeRTOS_write( &pdUART0, gprs_printfBuff, sizeof(gprs_printfBuff) );
 
+	// Debug
 	tickCount = xTaskGetTickCount();
 	snprintf_P( gprs_printfBuff,sizeof(gprs_printfBuff),PSTR(".[%06lu] tkGprs: OPEN SOCKET (%d)\r\n\0"),tickCount, GPRS_counters.qTryes );
 	u_debugPrint(D_GPRS, gprs_printfBuff, sizeof(gprs_printfBuff) );
@@ -235,9 +242,22 @@ static int gTR_C07(void)
 {
 	// Leo y Evaluo la respuesta al comando AT*E2IPO ( open socket )
 	// La respuesta correcta debe ser CONNECT
-	// La evalua la tarea tkGprsRX.
+	// La evalua la tarea tkGprsRX !!! pero de todos modos lo confirmo aqui.
 
-	// Muestro la respuesta del modem
+size_t pos;
+
+	GPRS_flags.modemResponse  = MRSP_NONE;
+
+	if ( g_strstr("CONNECT\0", &pos ) == TRUE ) {
+		GPRS_flags.modemResponse = MRSP_CREG;
+		GPRS_flags.socketStatus = SOCKET_OPEN;
+	}
+
+	if ( g_strstr("ERROR\0", &pos ) == TRUE ) {
+		GPRS_flags.modemResponse = MRSP_ERROR;
+		GPRS_flags.socketStatus = SOCKET_CLOSED;
+	}
+
 	g_printRxBuffer();
 
 	g_printExitMsg("C07\0");
@@ -270,12 +290,12 @@ static int gTR_C10(void)
 	tkGprs_state = gST_OFF;
 
 	g_printExitMsg("C10\0");
-	return(gSST_OFF_Entry);
+	return(gSST_OFF_00);
 }
 //------------------------------------------------------------------------------------
 static int gTR_C11(void)
 {
-
+	// Espero otros 5s
 	GPRS_counters.cTimer = 5;
 
 	g_printExitMsg("C11\0");
@@ -284,34 +304,29 @@ static int gTR_C11(void)
 //------------------------------------------------------------------------------------
 static int gTR_C12(void)
 {
-
+	// Vuelvo a reintentar abrir el socket
 	g_printExitMsg("C12\0");
 	return(gSST_SOCKET_03);
 }
 //------------------------------------------------------------------------------------
 static int gTR_C13(void)
 {
+	// El socket abrio: cambio de estado.
+
+	tkGprs_state = gST_DATA;
 
 	g_printExitMsg("C13\0");
-	return(gSST_SOCKET_08);
+	return(gSST_DATA_00);
 }
 //------------------------------------------------------------------------------------
 static int gTR_C14(void)
 {
+	// El socket indico ERROR.
 
-	tkGprs_state = gST_OFF;
+	--GPRS_counters.qTryes;
 
 	g_printExitMsg("C14\0");
-	return(gSST_OFF_Entry);
-}
-//------------------------------------------------------------------------------------
-static int gTR_C15(void)
-{
-
-	tkGprs_state = gST_OFF;
-
-	g_printExitMsg("C15\0");
-	return(gSST_OFF_Entry);
+	return(gSST_SOCKET_07);
 }
 //------------------------------------------------------------------------------------
 

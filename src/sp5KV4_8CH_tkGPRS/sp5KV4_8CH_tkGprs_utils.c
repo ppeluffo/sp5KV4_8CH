@@ -9,6 +9,13 @@
 #include "sp5KV4_8CH_tkGprs.h"
 
 //------------------------------------------------------------------------------------
+void g_reloadConfig(void)
+{
+	GPRS_flags.msgReload = FALSE;
+	tkGprs_state = gST_OFF;
+	tkGprs_subState = gSST_OFF_00;
+}
+//------------------------------------------------------------------------------------
 void g_flushRXBuffer(void)
 {
 	g_setModemResponse(MRSP_NONE);

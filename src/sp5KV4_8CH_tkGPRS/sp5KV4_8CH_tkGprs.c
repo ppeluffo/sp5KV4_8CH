@@ -40,7 +40,7 @@ uint32_t ulNotifiedValue;
 	FreeRTOS_write( &pdUART1, gprs_printfBuff, sizeof(gprs_printfBuff) );
 
 	tkGprs_state = gST_OFF;
-	tkGprs_subState = gSST_OFF_Entry;
+	tkGprs_subState = gSST_OFF_00;
 	//
 	for( ;; )
 	{
@@ -69,12 +69,15 @@ uint32_t ulNotifiedValue;
 		case gST_ONOPENSOCKET:
 			SM_onOpenSocket();
 			break;
+		case gST_DATA:
+			SM_Data();
+			break;
 		default:
 			snprintf_P( gprs_printfBuff,sizeof(gprs_printfBuff),PSTR("tkGprs::ERROR state NOT DEFINED\r\n\0"));
 			FreeRTOS_write( &pdUART1, gprs_printfBuff, sizeof(gprs_printfBuff) );
 			// Estado inicial.
 			tkGprs_state = gST_OFF;
-			tkGprs_subState = gSST_OFF_Entry;
+			tkGprs_subState = gSST_OFF_00;
 			break;
 		}
 
@@ -121,23 +124,37 @@ size_t pos;
 					// Una respuesta indica offline == s.closed
 					g_setSocketStatus(SOCKET_CLOSED);
 					//FreeRTOS_write( &pdUART1, "MRSP_OK\r\n\0", sizeof("MRSP_OK\r\n\0") );
+					//snprintf_P( gprsRX_printfBuff,sizeof(gprsRX_printfBuff),PSTR("DEBUG ** OK\r\n\0"));
+					//FreeRTOS_write( &pdUART1, gprsRX_printfBuff, sizeof(gprsRX_printfBuff) );
 
 				} else if ( g_strstr("ERROR\r", &pos ) == TRUE ) {
 					g_setModemResponse(MRSP_ERROR);
 					// Una respuesta indica offline == s.closed
 					g_setSocketStatus(SOCKET_CLOSED);
 					//FreeRTOS_write( &pdUART1, "MRSP_ERROR\r\n\0", sizeof("MRSP_ERROR\r\n\0") );
+					//snprintf_P( gprsRX_printfBuff,sizeof(gprsRX_printfBuff),PSTR("DEBUG ** ERR\r\n\0"));
+					//FreeRTOS_write( &pdUART1, gprsRX_printfBuff, sizeof(gprsRX_printfBuff) );
 
 				} else if ( g_strstr("CONNECT", &pos ) == TRUE ) {
 					g_setModemResponse(MRSP_CONNECT);
 					g_setSocketStatus(SOCKET_OPEN);
 					//FreeRTOS_write( &pdUART1, "MRSP_CONNECT\r\n\0", sizeof("MRSP_CONNECT\r\n\0") );
+					//snprintf_P( gprsRX_printfBuff,sizeof(gprsRX_printfBuff),PSTR("DEBUG ** SOCKET OPEN\r\n\0"));
+					//FreeRTOS_write( &pdUART1, gprsRX_printfBuff, sizeof(gprsRX_printfBuff) );
 
 				} else if ( g_strstr("NO CARRIER", &pos ) == TRUE ) {
 					g_setModemResponse(MRSP_NOCARRIER);
 					g_setSocketStatus(SOCKET_CLOSED);
 					//FreeRTOS_write( &pdUART1, "MRSP_NO CARRIER\r\n\0", sizeof("MRSP_NO CARRIER\r\n\0") );
+					snprintf_P( gprsRX_printfBuff,sizeof(gprsRX_printfBuff),PSTR("DEBUG ** NO CARRIER\r\n\0"));
+					FreeRTOS_write( &pdUART1, gprsRX_printfBuff, sizeof(gprsRX_printfBuff) );
+				} else if ( g_strstr("RX_OK", &pos ) == TRUE ) {
+					g_setModemResponse(MRSP_FRAMEOK);
+					//FreeRTOS_write( &pdUART1, "MRSP_NO CARRIER\r\n\0", sizeof("MRSP_NO CARRIER\r\n\0") );
+					snprintf_P( gprsRX_printfBuff,sizeof(gprsRX_printfBuff),PSTR("DEBUG ** FRAME_OK\r\n\0"));
+					FreeRTOS_write( &pdUART1, gprsRX_printfBuff, sizeof(gprsRX_printfBuff) );
 				}
+
 
 			}
 		}

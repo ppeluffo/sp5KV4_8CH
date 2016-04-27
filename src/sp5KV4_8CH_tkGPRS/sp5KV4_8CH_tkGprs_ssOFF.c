@@ -24,17 +24,18 @@ static int gTR_A11(void);
 static int gTR_A12(void);
 static int gTR_A13(void);
 static int gTR_A14(void);
+static int gTR_A15(void);
 
 // Eventos locales al estado OFF.
 typedef enum {
-	a_ev_RELOADCONFIG = 0,
-	a_ev_CTIMER_NOT_0,
+	a_ev_CTIMER_NOT_0 = 0,
 	a_ev_P_TRYES_NOT_0,
 	a_ev_Q_TRYES_NOT_0,
 	a_ev_M_RSP_OK,		// La respuesta del modem es OK
+	a_ev_WKM_SERVICE,
 } t_ssOff_eventos;
 
-#define ssOFF_EVENT_COUNT 5
+#define ssOFF_EVENT_COUNT 6
 
 //------------------------------------------------------------------------------------
 /*
@@ -62,55 +63,65 @@ u08 i;
 	// evQTRYES_IS_0
 	if ( GPRS_counters.qTryes > 0 ) { a_eventos[a_ev_Q_TRYES_NOT_0] = TRUE; }
 	// ev_GPRSRSP_OK
-	if ( modem_response == MRSP_OK ) { a_eventos[a_ev_M_RSP_OK] = TRUE; }
+	if ( GPRS_flags.modemResponse == MRSP_OK ) { a_eventos[a_ev_M_RSP_OK] = TRUE; }
+	// ev_WKM_SERVICE
+	if ( ( systemVars.wrkMode == WK_SERVICE ) || ( systemVars.wrkMode == WK_MONITOR_FRAME ) ) { a_eventos[a_ev_WKM_SERVICE] = TRUE; }
+
+	// MSG_RELOAD
+	if ( GPRS_flags.msgReload == TRUE ) {
+		g_reloadConfig();
+		return;
+	}
 
 	switch ( tkGprs_subState ) {
-	case gSST_OFF_Entry:
+	case gSST_OFF_00:
 		tkGprs_subState = gTR_A00();
 		break;
-	case gSST_OFF_00:
-		if ( a_eventos[a_ev_P_TRYES_NOT_0] )  {
+	case gSST_OFF_01:
+		if ( a_eventos[a_ev_WKM_SERVICE] ) {
+			tkGprs_subState = gTR_A15();
+		} else if ( a_eventos[a_ev_P_TRYES_NOT_0] )  {
 			tkGprs_subState = gTR_A04();
 		} else {
 			tkGprs_subState = gTR_A01();
 		}
 		break;
-	case gSST_OFF_01:
+	case gSST_OFF_02:
 		if ( a_eventos[a_ev_CTIMER_NOT_0] )  {
 			tkGprs_subState = gTR_A05();
 		} else {
 			tkGprs_subState = gTR_A06();
 		}
 		break;
-	case gSST_OFF_02:
+	case gSST_OFF_03:
 		if ( a_eventos[a_ev_CTIMER_NOT_0] )  {
 			tkGprs_subState = gTR_A07();
 		} else {
 			tkGprs_subState = gTR_A08();
 		}
 		break;
-	case gSST_OFF_03:
+	case gSST_OFF_04:
 		if ( a_eventos[a_ev_Q_TRYES_NOT_0] )  {
 			tkGprs_subState = gTR_A09();
 		} else {
 			tkGprs_subState = gTR_A10();
 		}
 		break;
-	case gSST_OFF_04:
+	case gSST_OFF_05:
 		if ( a_eventos[a_ev_CTIMER_NOT_0] )  {
 			tkGprs_subState = gTR_A11();
 		} else {
 			tkGprs_subState = gTR_A12();
 		}
 		break;
-	case gSST_OFF_05:
+	case gSST_OFF_06:
 		if ( a_eventos[a_ev_M_RSP_OK] )  {
 			tkGprs_subState = gTR_A14();
 		} else {
 			tkGprs_subState = gTR_A13();
 		}
 		break;
-	case gSST_OFF_06:
+	case gSST_OFF_07:
 		if ( a_eventos[a_ev_CTIMER_NOT_0] )  {
 			tkGprs_subState = gTR_A02();
 		} else {
@@ -121,7 +132,7 @@ u08 i;
 		snprintf_P( gprs_printfBuff,sizeof(gprs_printfBuff),PSTR("\r\ntkGprs::ERROR sst_off: subState  (%d) NOT DEFINED\r\n\0"),tkGprs_subState);
 		FreeRTOS_write( &pdUART1, gprs_printfBuff, sizeof(gprs_printfBuff) );
 		tkGprs_state = gST_OFF;
-		tkGprs_subState = gSST_OFF_Entry;
+		tkGprs_subState = gSST_OFF_00;
 		break;
 	}
 
@@ -144,7 +155,7 @@ static int gTR_A00(void)
 	GPRS_flags.msgReload = FALSE;
 
 	g_printExitMsg("A00\0");
-	return(gSST_OFF_00);
+	return(gSST_OFF_01);
 }
 //------------------------------------------------------------------------------------
 static int gTR_A01(void)
@@ -155,9 +166,10 @@ static int gTR_A01(void)
 	// Inicializo el contador de segundos para la cantidad a esperar para
 	// comenzar a rediscar.
 	GPRS_counters.cTimer = SECS_AWAIT_NEWCICLE;
+	MODEM_HWpwrOff();
 
 	g_printExitMsg("A01\0");
-	return(gSST_OFF_06);
+	return(gSST_OFF_07);
 
 }
 //------------------------------------------------------------------------------------
@@ -170,20 +182,24 @@ static int gTR_A02(void)
 	--GPRS_counters.cTimer;
 
 	//g_printExitMsg("A02\0");
-	return(gSST_OFF_06);
+	return(gSST_OFF_07);
 }
 //------------------------------------------------------------------------------------
 static int gTR_A03(void)
 {
 
 	// Termine de esperar: vuelvo a rediscar
+	strncpy_P(systemVars.dlgIp, PSTR("000.000.000.000\0"),16);
+	systemVars.csq = 0;
+	systemVars.dbm = 0;
+	//
 	GPRS_counters.pTryes = HW_TRYES;
 
 	// Inicializamos las variables de trabajo.
 	GPRS_flags.msgReload = FALSE;
 
 	g_printExitMsg("A03\0");
-	return(gSST_OFF_00);
+	return(gSST_OFF_01);
 
 }
 //------------------------------------------------------------------------------------
@@ -204,7 +220,7 @@ static int gTR_A04(void)
 	GPRS_counters.cTimer = 5;
 	//
 	g_printExitMsg("A04\0");
-	return(gSST_OFF_01);
+	return(gSST_OFF_02);
 
 }
 //------------------------------------------------------------------------------------
@@ -216,7 +232,7 @@ static int gTR_A05(void)
 	--GPRS_counters.cTimer;
 
 	//g_printExitMsg("A05\0");
-	return(gSST_OFF_01);
+	return(gSST_OFF_02);
 }
 //------------------------------------------------------------------------------------
 static int gTR_A06(void)
@@ -229,7 +245,7 @@ static int gTR_A06(void)
 	GPRS_counters.cTimer = 5;
 	//
 	g_printExitMsg("A06\0");
-	return(gSST_OFF_02);
+	return(gSST_OFF_03);
 
 }
 //------------------------------------------------------------------------------------
@@ -241,7 +257,7 @@ static int gTR_A07(void)
 	--GPRS_counters.cTimer;
 
 	//g_printExitMsg("A07\0");
-	return(gSST_OFF_02);
+	return(gSST_OFF_03);
 }
 //------------------------------------------------------------------------------------
 static int gTR_A08(void)
@@ -252,7 +268,7 @@ static int gTR_A08(void)
 	GPRS_counters.qTryes = SW_TRYES;
 
 	g_printExitMsg("A08\0");
-	return(gSST_OFF_03);
+	return(gSST_OFF_04);
 }
 //------------------------------------------------------------------------------------
 static int gTR_A09(void)
@@ -270,7 +286,7 @@ static int gTR_A09(void)
 	GPRS_counters.cTimer = 10;
 
 	g_printExitMsg("A09\0");
-	return(gSST_OFF_04);
+	return(gSST_OFF_05);
 }
 //------------------------------------------------------------------------------------
 static int gTR_A10(void)
@@ -278,7 +294,7 @@ static int gTR_A10(void)
 	// Reintente el max. toggles: vuelvo al inicio a apagarlo y prenderlo
 
 	g_printExitMsg("A10\0");
-	return(gSST_OFF_00);
+	return(gSST_OFF_01);
 }
 //------------------------------------------------------------------------------------
 static int gTR_A11(void)
@@ -289,7 +305,7 @@ static int gTR_A11(void)
 	--GPRS_counters.cTimer;
 
 	//g_printExitMsg("A11\0");
-	return(gSST_OFF_04);
+	return(gSST_OFF_05);
 }
 //------------------------------------------------------------------------------------
 static int gTR_A12(void)
@@ -300,23 +316,23 @@ size_t pos;
 
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_RX_BUFFER, NULL);
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_TX_BUFFER, NULL);
-	g_flushRXBuffer();
 
-	modem_response =  MRSP_NONE;
+	g_flushRXBuffer();
 	FreeRTOS_write( &pdUART0, "AT\r\0", sizeof("AT\r\0") );
 
 	vTaskDelay( ( TickType_t)( 1000 / portTICK_RATE_MS ) );
 
+	// Leo y Evaluo la respuesta al comando AT
+	GPRS_flags.modemResponse = MRSP_NONE;
+	if ( g_strstr("OK\0", &pos ) == TRUE ) {
+		GPRS_flags.modemResponse = MRSP_OK;
+	}
+
 	// Muestro el resultado.
 	g_printRxBuffer();
 
-	// Leo y Evaluo la respuesta al comando AT
-	if ( g_strstr("OK\0", &pos ) == TRUE ) {
-		modem_response = MRSP_OK;
-	}
-
 	g_printExitMsg("A12\0");
-	return(gSST_OFF_05);
+	return(gSST_OFF_06);
 }
 //------------------------------------------------------------------------------------
 static int gTR_A13(void)
@@ -325,7 +341,7 @@ static int gTR_A13(void)
 	// Reintento prenderlo
 
 	g_printExitMsg("A13\0");
-	return(gSST_OFF_03);
+	return(gSST_OFF_04);
 }
 //------------------------------------------------------------------------------------
 static int gTR_A14(void)
@@ -337,5 +353,15 @@ static int gTR_A14(void)
 
 	g_printExitMsg("A14\0");
 	return(gSST_ONOFFLINE_00);
+}
+//------------------------------------------------------------------------------------
+static int gTR_A15(void)
+{
+	// El datalogger esta en modo service. No prendo el modem y espero
+
+	GPRS_counters.cTimer = 60;
+
+	g_printExitMsg("A15\0");
+	return(gSST_OFF_07);
 }
 //------------------------------------------------------------------------------------

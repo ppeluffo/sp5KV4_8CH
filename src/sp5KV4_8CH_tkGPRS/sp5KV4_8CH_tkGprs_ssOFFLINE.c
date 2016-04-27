@@ -40,11 +40,10 @@ typedef enum {
 	b_ev_Q_TRYES_NOT_0,
 	b_ev_CREGRSP_OK,
 	b_ev_WKMONITOR_SQE,
-	b_ev_IPASSIGNED
+	b_ev_IPASSIGNED,
 } t_ssOff_eventos;
 
 #define ssON_EVENT_COUNT 7
-
 
 //------------------------------------------------------------------------------------
 /*
@@ -75,11 +74,17 @@ u08 i;
 	// evQTRYES_IS_0
 	if ( GPRS_counters.qTryes > 0 ) { b_eventos[b_ev_Q_TRYES_NOT_0] = TRUE; }
 	// ev_CREGRSP_OK		CREGrsp == +CREG 0,1
-	if ( modem_response == MRSP_CREG ) { b_eventos[b_ev_CREGRSP_OK] = TRUE; }
+	if (  GPRS_flags.modemResponse == MRSP_CREG ) { b_eventos[b_ev_CREGRSP_OK] = TRUE; }
 	// ev_WKMONITOR_SQE
 	if ( systemVars.wrkMode == WK_MONITOR_SQE ) { b_eventos[b_ev_WKMONITOR_SQE] = TRUE; }
 	// ev_IPASSIGNED		E2IPA: 000
-	if ( modem_response == MRSP_E2IPA ) { b_eventos[b_ev_IPASSIGNED] = TRUE; }
+	if (  GPRS_flags.modemResponse == MRSP_E2IPA ) { b_eventos[b_ev_IPASSIGNED] = TRUE; }
+
+	// MSG_RELOAD
+	if ( GPRS_flags.msgReload == TRUE ) {
+		void g_reloadConfig(void);
+		return;
+	}
 
 	switch ( tkGprs_subState ) {
 	case gSST_ONOFFLINE_00:
@@ -165,7 +170,7 @@ u08 i;
 		snprintf_P( gprs_printfBuff,sizeof(gprs_printfBuff),PSTR("\r\ntkGprs::ERROR sst_onoffline: subState  (%d) NOT DEFINED\r\n\0"),tkGprs_subState);
 		FreeRTOS_write( &pdUART1, gprs_printfBuff, sizeof(gprs_printfBuff) );
 		tkGprs_state = gST_OFF;
-		tkGprs_subState = gSST_OFF_Entry;
+		tkGprs_subState = gSST_OFF_00;
 		break;
 	}
 
@@ -290,7 +295,7 @@ static int gTR_B02(void)
 	tkGprs_state = gST_OFF;
 
 	g_printExitMsg("B02\0");
-	return(gSST_OFF_Entry);
+	return(gSST_OFF_00);
 }
 //------------------------------------------------------------------------------------
 static int gTR_B03(void)
@@ -305,9 +310,9 @@ static int gTR_B03(void)
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_TX_BUFFER, NULL);
 	g_flushRXBuffer();
 
-	modem_response = MRSP_NONE;
 	FreeRTOS_write( &pdUART0, "AT+CREG?\r\0", sizeof("AT+CREG?\r\0") );
 	vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
+	GPRS_flags.modemResponse  = MRSP_NONE;
 
 	g_printExitMsg("B03\0");
 	return(gSST_ONOFFLINE_03);
@@ -331,8 +336,9 @@ static int gTR_B05(void)
 size_t pos;
 
 	// Leo y Evaluo la respuesta al comando AT+CREG ( home network )
+	GPRS_flags.modemResponse  = MRSP_NONE;
 	if ( g_strstr("+CREG: 0,1\0", &pos ) == TRUE ) {
-		modem_response = MRSP_CREG;
+		GPRS_flags.modemResponse = MRSP_CREG;
 	}
 	//( roaming !!!. Se usa en Concordia )
 	//if ( systemVars.roaming == TRUE ) {
@@ -361,10 +367,12 @@ static int gTR_B07(void)
 	GPRS_counters.cTimer = 6;	// a intervalos de 6s entre consultas
 
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_RX_BUFFER, NULL);
-	g_flushRXBuffer();
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_TX_BUFFER, NULL);
+	g_flushRXBuffer();
+
 	FreeRTOS_write( &pdUART0, "AT+CREG?\r\0", sizeof("AT+CREG?\r\0") );
 	vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
+	GPRS_flags.modemResponse  = MRSP_NONE;
 
 	g_printExitMsg("B07\0");
 	return(gSST_ONOFFLINE_03);
@@ -377,7 +385,7 @@ static int gTR_B08(void)
 	tkGprs_state = gST_OFF;
 
 	g_printExitMsg("B08\0");
-	return(gSST_ONOFFLINE_01);
+	return(gSST_OFF_00);
 }
 //------------------------------------------------------------------------------------
 static int gTR_B09(void)
@@ -393,9 +401,9 @@ static int gTR_B09(void)
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_TX_BUFFER, NULL);
 	g_flushRXBuffer();
 
-	modem_response =  MRSP_NONE;
 	FreeRTOS_write( &pdUART0, "AT+CSQ\r\0", sizeof("AT+CSQ\r\0") );
 	vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
+	GPRS_flags.modemResponse =  MRSP_NONE;
 
 	g_printExitMsg("B09\0");
 	return(gSST_ONOFFLINE_06);
@@ -443,13 +451,14 @@ static int gTR_B12(void)
 {
 
 	GPRS_counters.cTimer = 15;	// Repregunto c/15s.
-	modem_response =  MRSP_NONE;
 
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_RX_BUFFER, NULL);
-	g_flushRXBuffer();
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_TX_BUFFER, NULL);
+	g_flushRXBuffer();
+
 	FreeRTOS_write( &pdUART0, "AT+CSQ\r\0", sizeof("AT+CSQ\r\0") );
 	vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
+	GPRS_flags.modemResponse =  MRSP_NONE;
 
 	g_printExitMsg("B12\0");
 	return(gSST_ONOFFLINE_06);
@@ -465,12 +474,12 @@ size_t xBytes;
 	// APN
 	snprintf_P( gprs_printfBuff,sizeof(gprs_printfBuff),PSTR("\r\n%s: GPRS set APN:\r\n\0"), u_now());
 	FreeRTOS_write( &pdUART1, gprs_printfBuff, sizeof(gprs_printfBuff) );
-	xBytes = snprintf_P( gprs_printfBuff,sizeof(gprs_printfBuff),PSTR("AT+CGDCONT=1,\"IP\",\"%s\"\r\0"),systemVars.apn);
-	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_RX_BUFFER, NULL);
 
-	modem_response =  MRSP_NONE;
-	g_flushRXBuffer();
+	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_RX_BUFFER, NULL);
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_TX_BUFFER, NULL);
+	g_flushRXBuffer();
+
+	xBytes = snprintf_P( gprs_printfBuff,sizeof(gprs_printfBuff),PSTR("AT+CGDCONT=1,\"IP\",\"%s\"\r\0"),systemVars.apn);
 	FreeRTOS_write( &pdUART0, gprs_printfBuff, sizeof(gprs_printfBuff) );
 	vTaskDelay( (portTickType)( 1000 / portTICK_RATE_MS ) );
 	g_printRxBuffer();
@@ -492,11 +501,11 @@ static int gTR_B14(void)
 	FreeRTOS_write( &pdUART1, gprs_printfBuff, sizeof(gprs_printfBuff) );
 
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_RX_BUFFER, NULL);
-	g_flushRXBuffer();
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_TX_BUFFER, NULL);
+	g_flushRXBuffer();
 
-	GPRS_flags.modemResponse = MRSP_NONE;
 	FreeRTOS_write( &pdUART0, "AT*E2IPA=1,1\r\0", sizeof("AT*E2IPA=1,1\r\0") );
+	GPRS_flags.modemResponse = MRSP_NONE;
 
 	g_printExitMsg("B14\0");
 	return(gSST_ONOFFLINE_09);
@@ -518,8 +527,9 @@ static int gTR_B16(void)
 size_t pos;
 
 	// Leo y Evaluo la respuesta al comando AT+CREG ( home network )
+	GPRS_flags.modemResponse = MRSP_NONE;
 	if ( g_strstr("E2IPA: 000\0", &pos ) == TRUE ) {
-		modem_response = MRSP_E2IPA;
+		GPRS_flags.modemResponse = MRSP_E2IPA;
 	}
 
 	g_printRxBuffer();
@@ -557,17 +567,19 @@ static int gTR_B19(void)
 //------------------------------------------------------------------------------------
 static int gTR_B20(void)
 {
-	// Tengo la IP asignada: salgo
+	// Tengo la IP asignada: la leo para actualizar systemVars.ipaddress y salgo
 
 char *ts = NULL;
 int i=0;
 char c;
 
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_RX_BUFFER, NULL);
-	g_flushRXBuffer();
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_TX_BUFFER, NULL);
+	g_flushRXBuffer();
 	FreeRTOS_write( &pdUART0, "AT*E2IPI=0\r\0", sizeof("AT*E2IPI=0\r\0") );
 	vTaskDelay( (portTickType)( 500 / portTICK_RATE_MS ) );
+
+	//  Muestro la IP en pantalla
 	g_printRxBuffer();
 
 	// Extraigo la IP del token. Voy a usar el buffer  de print ya que la respuesta
@@ -606,7 +618,7 @@ static int gTR_B22(void)
 	tkGprs_state = gST_OFF;
 
 	g_printExitMsg("B22\0");
-	return(gSST_OFF_Entry);
+	return(gSST_OFF_00);
 }
 //------------------------------------------------------------------------------------
 
