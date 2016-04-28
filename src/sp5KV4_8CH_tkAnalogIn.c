@@ -476,7 +476,7 @@ StatBuffer_t pxFFStatBuffer;
 
 	// Fecha y hora
 	pos += snprintf_P( &aIn_printfBuff[pos], ( sizeof(aIn_printfBuff) - pos ),PSTR( "%04d%02d%02d,"),Aframe.rtc.year,Aframe.rtc.month,Aframe.rtc.day );
-	pos += snprintf_P( &aIn_printfBuff[pos], ( sizeof(aIn_printfBuff) - pos ), PSTR("%02d%02d%02d} ["),Aframe.rtc.hour,Aframe.rtc.min, Aframe.rtc.sec );
+	pos += snprintf_P( &aIn_printfBuff[pos], ( sizeof(aIn_printfBuff) - pos ), PSTR("%02d%02d%02d} "),Aframe.rtc.hour,Aframe.rtc.min, Aframe.rtc.sec );
 
 	// Datos analogicos
 	for ( i = 0; i < NRO_ANALOG_CHANNELS; i++ ) {
@@ -485,7 +485,7 @@ StatBuffer_t pxFFStatBuffer;
 			pos += snprintf_P( &aIn_printfBuff[pos], ( sizeof(aIn_printfBuff) - pos ), PSTR(","));
 		}
 	}
-	pos += snprintf_P( &aIn_printfBuff[pos], ( sizeof(aIn_printfBuff) - pos ), PSTR("]\r\n"));
+	//pos += snprintf_P( &aIn_printfBuff[pos], ( sizeof(aIn_printfBuff) - pos ), PSTR("]\r\n"));
 
 	// Datos digitales
 	for ( i = 0; i < NRO_DIGITAL_CHANNELS; i++ ) {
@@ -499,11 +499,11 @@ StatBuffer_t pxFFStatBuffer;
 	// En modo normal o monitor frame muestro el dato
 	if ( systemVars.wrkMode == WK_NORMAL ) {
 		// En modo normal agrego el mem.stats
-		pos += snprintf_P( &aIn_printfBuff[pos], ( sizeof(aIn_printfBuff) - pos ), PSTR("MEM [%d/%d/%d][%d/%d]\r\n\0"), pxFFStatBuffer.HEAD,pxFFStatBuffer.RD, pxFFStatBuffer.TAIL,pxFFStatBuffer.rcdsFree,pxFFStatBuffer.rcds4del);
 		FreeRTOS_write( &pdUART1, "POLL->\0", sizeof("POLL->\0") );
+		pos += snprintf_P( &aIn_printfBuff[pos], ( sizeof(aIn_printfBuff) - pos ), PSTR("POLL->MEM [%d/%d/%d][%d/%d]\r\n\0"), pxFFStatBuffer.HEAD,pxFFStatBuffer.RD, pxFFStatBuffer.TAIL,pxFFStatBuffer.rcdsFree,pxFFStatBuffer.rcds4del);
 	} else if ( systemVars.wrkMode == WK_MONITOR_FRAME ) {
-		pos += snprintf_P( &aIn_printfBuff[pos], ( sizeof(aIn_printfBuff) - pos ), PSTR("\r\n\0"));
 		FreeRTOS_write( &pdUART1, "MON->\0", sizeof("MON->\0") );
+		pos += snprintf_P( &aIn_printfBuff[pos], ( sizeof(aIn_printfBuff) - pos ), PSTR("\r\n\0"));
 	} else {
 		pos += snprintf_P( &aIn_printfBuff[pos], ( sizeof(aIn_printfBuff) - pos ), PSTR("\r\n\0"));
 	}

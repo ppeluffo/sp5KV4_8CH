@@ -167,6 +167,7 @@ static int gTR_A01(void)
 	// comenzar a rediscar.
 	GPRS_counters.cTimer = SECS_AWAIT_NEWCICLE;
 	MODEM_HWpwrOff();
+	GPRS_flags.modemPwrStatus = MDM_APAGADO;
 
 	g_printExitMsg("A01\0");
 	return(gSST_OFF_07);
@@ -215,6 +216,7 @@ static int gTR_A04(void)
 	--GPRS_counters.pTryes;
 	//
 	MODEM_HWpwrOff();
+	GPRS_flags.modemPwrStatus = MDM_APAGADO;
 	//
 	// Vamos a espera 5secs.
 	GPRS_counters.cTimer = 5;
@@ -347,10 +349,10 @@ static int gTR_A13(void)
 static int gTR_A14(void)
 {
 	// El modem respondio: esta prendido.
+	GPRS_flags.modemPwrStatus = MDM_PRENDIDO;
 	// Cambio de estado a gST_ONOFFLINE.
 
 	tkGprs_state = gST_ONOFFLINE;
-
 	g_printExitMsg("A14\0");
 	return(gSST_ONOFFLINE_00);
 }

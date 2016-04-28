@@ -30,7 +30,7 @@ typedef enum {
 	c_ev_P_TRYES_NOT_0,
 	c_ev_Q_TRYES_NOT_0,
 	c_ev_SOCK_IS_OPEN,
-	c_ev_SOCK_ERROR
+	c_ev_M_RSP_ERROR
 
 } t_ssSock_eventos;
 
@@ -66,7 +66,7 @@ u08 i;
 	// ev_SOCK_IS_OPEN	CONNECT
 	if ( GPRS_flags.socketStatus == SOCKET_OPEN ) { c_eventos[c_ev_SOCK_IS_OPEN] = TRUE; }
 	// ev_SOCK_ERROR
-	if ( GPRS_flags.modemResponse == MRSP_ERROR ) { c_eventos[c_ev_SOCK_ERROR] = TRUE; }
+	if ( GPRS_flags.modemResponse == MRSP_ERROR ) { c_eventos[c_ev_M_RSP_ERROR] = TRUE; }
 	//
 	// MSG_RELOAD
 	if ( GPRS_flags.msgReload == TRUE ) {
@@ -105,7 +105,7 @@ u08 i;
 	case gSST_SOCKET_05:
 		if ( c_eventos[c_ev_SOCK_IS_OPEN] )  {
 			tkGprs_subState = gTR_C13();
-		} else if ( c_eventos[c_ev_SOCK_ERROR] ) {
+		} else if ( c_eventos[c_ev_M_RSP_ERROR] ) {
 			tkGprs_subState = gTR_C14();
 		} else {
 			tkGprs_subState = gTR_C08();
@@ -140,8 +140,8 @@ static int gTR_C00(void)
 
 	GPRS_counters.cTimer = 30;	// Espero hasta 30s que el socket este cerrado.
 
-	snprintf_P( gprs_printfBuff,sizeof(gprs_printfBuff),PSTR("\r\n%s: GPRS open SOCKET:\r\n\0"), u_now());
-	FreeRTOS_write( &pdUART1, gprs_printfBuff, sizeof(gprs_printfBuff) );
+//	snprintf_P( gprs_printfBuff,sizeof(gprs_printfBuff),PSTR("\r\n%s: GPRS open SOCKET:\r\n\0"), u_now());
+//	FreeRTOS_write( &pdUART1, gprs_printfBuff, sizeof(gprs_printfBuff) );
 
 	// Cierro el socket por las dudas.
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_RX_BUFFER, NULL);
@@ -214,7 +214,6 @@ size_t xBytes;
 	FreeRTOS_ioctl( &pdUART0,ioctl_UART_CLEAR_TX_BUFFER, NULL);
 	g_flushRXBuffer();
 
-	GPRS_flags.modemResponse  = MRSP_NONE;
 	xBytes = snprintf_P( gprs_printfBuff,sizeof(gprs_printfBuff),PSTR("AT*E2IPO=1,\"%s\",%s\r\n\0"),systemVars.serverAddress,systemVars.serverPort);
 	FreeRTOS_write( &pdUART0, gprs_printfBuff, sizeof(gprs_printfBuff) );
 

@@ -54,8 +54,8 @@
 
 // DEFINICION DEL TIPO DE SISTEMA
 //----------------------------------------------------------------------------
-#define SP5K_REV "4.1.3"
-#define SP5K_DATE "@ 20160427a"
+#define SP5K_REV "4.1.4"
+#define SP5K_DATE "@ 20160428a"
 
 #define SP5K_MODELO "sp5KV4_8CH HW:avr1284P R5.0"
 #define SP5K_VERSION "FW:FRTOS8"
@@ -118,9 +118,7 @@ xSemaphoreHandle sem_SYSVars;
 #define MSTOTAKESYSVARSSEMPH ((  TickType_t ) 10 )
 
 typedef enum { WK_IDLE = 0, WK_NORMAL, WK_SERVICE, WK_MONITOR_FRAME, WK_MONITOR_SQE  } t_wrkMode;
-
-#define PRENDIDO	TRUE
-#define APAGADO		FALSE
+typedef enum { MDM_PRENDIDO = 0, MDM_APAGADO } t_modemStatus;
 
 #define NRO_DIGITAL_CHANNELS	4
 #define NRO_ANALOG_CHANNELS		8

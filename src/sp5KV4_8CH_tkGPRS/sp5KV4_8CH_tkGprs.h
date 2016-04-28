@@ -76,7 +76,7 @@ typedef enum { MRSP_NONE = 0, MRSP_OK , MRSP_ERROR, MRSP_CONNECT, MRSP_NOCARRIER
 struct {
 	s08 msgReload;
 	t_modemResponse modemResponse;
-	s08 modemPwrStatus;
+	t_modemStatus modemPwrStatus;
 	t_socket socketStatus;
 	s08 gsmBandOK;
 	s08 memRcds4Tx;
@@ -100,7 +100,7 @@ struct {
 #define HW_TRYES	3			// Reintentos de prender HW el modem
 #define SW_TRYES	3			// Reintentos de hacer toggle del SW del modem
 #define SECS_AWAIT_NEWCICLE	15	// Espera entre ciclos si el modem no prendio.
-#define FRAMEXTXWINDOW	5
+#define FRAMEXTXWINDOW	10		// Registros por frameWindow.
 
 char gprs_printfBuff[CHAR256];
 char gprsRX_printfBuff[CHAR256];

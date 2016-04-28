@@ -107,23 +107,21 @@ static void pv_flashLeds(void)
 
 static u08 l_timer = 1;
 
+	// El led de KA lo prendo y apago c 1/s
+	u_prenderLed(LED_KA);
+	vTaskDelay( 1 );
+	u_apagarLed(LED_KA);
+
+	// El led de modem lo prendo y apago c 2s.
 	if (l_timer-- > 0 )
 		return;
 
 	l_timer = 1;
-
-
-	// Prendo:
-	u_prenderLed(LED_KA);
-	// ModemLed placa superior.
-	if (u_modemPwrStatus() == PRENDIDO )
+	if (u_modemPwrStatus() == MDM_PRENDIDO )
 		u_prenderLed(LED_MODEM);
 
 	// no es necesario ya que lo que demora las MCP son suficientes.
 	vTaskDelay( 1 );
-
-	// Apago
-	u_apagarLed(LED_KA);
 	u_apagarLed(LED_MODEM);
 
 }

@@ -312,7 +312,6 @@ static int gTR_B03(void)
 
 	FreeRTOS_write( &pdUART0, "AT+CREG?\r\0", sizeof("AT+CREG?\r\0") );
 	vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
-	GPRS_flags.modemResponse  = MRSP_NONE;
 
 	g_printExitMsg("B03\0");
 	return(gSST_ONOFFLINE_03);
@@ -372,7 +371,6 @@ static int gTR_B07(void)
 
 	FreeRTOS_write( &pdUART0, "AT+CREG?\r\0", sizeof("AT+CREG?\r\0") );
 	vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
-	GPRS_flags.modemResponse  = MRSP_NONE;
 
 	g_printExitMsg("B07\0");
 	return(gSST_ONOFFLINE_03);
@@ -403,7 +401,6 @@ static int gTR_B09(void)
 
 	FreeRTOS_write( &pdUART0, "AT+CSQ\r\0", sizeof("AT+CSQ\r\0") );
 	vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
-	GPRS_flags.modemResponse =  MRSP_NONE;
 
 	g_printExitMsg("B09\0");
 	return(gSST_ONOFFLINE_06);
@@ -458,7 +455,6 @@ static int gTR_B12(void)
 
 	FreeRTOS_write( &pdUART0, "AT+CSQ\r\0", sizeof("AT+CSQ\r\0") );
 	vTaskDelay( (portTickType)( 100 / portTICK_RATE_MS ) );
-	GPRS_flags.modemResponse =  MRSP_NONE;
 
 	g_printExitMsg("B12\0");
 	return(gSST_ONOFFLINE_06);
@@ -505,7 +501,6 @@ static int gTR_B14(void)
 	g_flushRXBuffer();
 
 	FreeRTOS_write( &pdUART0, "AT*E2IPA=1,1\r\0", sizeof("AT*E2IPA=1,1\r\0") );
-	GPRS_flags.modemResponse = MRSP_NONE;
 
 	g_printExitMsg("B14\0");
 	return(gSST_ONOFFLINE_09);

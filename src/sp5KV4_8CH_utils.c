@@ -265,10 +265,10 @@ u08 i = 0;
 	strncpy_P(systemVars.apn, PSTR("SPYMOVIL.VPNANTEL\0"),APN_LENGTH);
 
 	// DEBUG
-	systemVars.debugLevel = D_BASIC + D_GPRS;
+	systemVars.debugLevel = D_BASIC;
 
 	strncpy_P(systemVars.serverAddress, PSTR("192.168.0.9\0"),IP_LENGTH);
-	systemVars.timerPoll = 300;			// Poleo c/5 minutos
+	systemVars.timerPoll = 60;			// Poleo c/1 minuto.
 
 	// Canales digitales
 	for ( i = 0; i < NRO_ANALOG_CHANNELS; i++ ) {

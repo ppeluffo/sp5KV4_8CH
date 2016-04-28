@@ -120,42 +120,24 @@ size_t pos;
 			if (c == '\r') {
 
 				if ( g_strstr("OK\r", &pos ) == TRUE ) {
-					g_setModemResponse(MRSP_OK);
-					// Una respuesta indica offline == s.closed
-					g_setSocketStatus(SOCKET_CLOSED);
-					//FreeRTOS_write( &pdUART1, "MRSP_OK\r\n\0", sizeof("MRSP_OK\r\n\0") );
-					//snprintf_P( gprsRX_printfBuff,sizeof(gprsRX_printfBuff),PSTR("DEBUG ** OK\r\n\0"));
-					//FreeRTOS_write( &pdUART1, gprsRX_printfBuff, sizeof(gprsRX_printfBuff) );
-
-				} else if ( g_strstr("ERROR\r", &pos ) == TRUE ) {
-					g_setModemResponse(MRSP_ERROR);
-					// Una respuesta indica offline == s.closed
-					g_setSocketStatus(SOCKET_CLOSED);
-					//FreeRTOS_write( &pdUART1, "MRSP_ERROR\r\n\0", sizeof("MRSP_ERROR\r\n\0") );
-					//snprintf_P( gprsRX_printfBuff,sizeof(gprsRX_printfBuff),PSTR("DEBUG ** ERR\r\n\0"));
-					//FreeRTOS_write( &pdUART1, gprsRX_printfBuff, sizeof(gprsRX_printfBuff) );
-
-				} else if ( g_strstr("CONNECT", &pos ) == TRUE ) {
-					g_setModemResponse(MRSP_CONNECT);
-					g_setSocketStatus(SOCKET_OPEN);
-					//FreeRTOS_write( &pdUART1, "MRSP_CONNECT\r\n\0", sizeof("MRSP_CONNECT\r\n\0") );
-					//snprintf_P( gprsRX_printfBuff,sizeof(gprsRX_printfBuff),PSTR("DEBUG ** SOCKET OPEN\r\n\0"));
-					//FreeRTOS_write( &pdUART1, gprsRX_printfBuff, sizeof(gprsRX_printfBuff) );
-
-				} else if ( g_strstr("NO CARRIER", &pos ) == TRUE ) {
-					g_setModemResponse(MRSP_NOCARRIER);
-					g_setSocketStatus(SOCKET_CLOSED);
-					//FreeRTOS_write( &pdUART1, "MRSP_NO CARRIER\r\n\0", sizeof("MRSP_NO CARRIER\r\n\0") );
-					snprintf_P( gprsRX_printfBuff,sizeof(gprsRX_printfBuff),PSTR("DEBUG ** NO CARRIER\r\n\0"));
-					FreeRTOS_write( &pdUART1, gprsRX_printfBuff, sizeof(gprsRX_printfBuff) );
-				} else if ( g_strstr("RX_OK", &pos ) == TRUE ) {
-					g_setModemResponse(MRSP_FRAMEOK);
-					//FreeRTOS_write( &pdUART1, "MRSP_NO CARRIER\r\n\0", sizeof("MRSP_NO CARRIER\r\n\0") );
-					snprintf_P( gprsRX_printfBuff,sizeof(gprsRX_printfBuff),PSTR("DEBUG ** FRAME_OK\r\n\0"));
-					FreeRTOS_write( &pdUART1, gprsRX_printfBuff, sizeof(gprsRX_printfBuff) );
+				//	FreeRTOS_write( &pdUART1, "DEBUG ** MRSP_OK\r\n\0", sizeof("DEBUG ** MRSP_OK\r\n\0") );
+				// No podemos asumir que el socket este cerrado ya que en las respuestas HTTP puede venir
+				// un OK\r.
 				}
 
+				if ( g_strstr("ERROR\r", &pos ) == TRUE ) {
+					//FreeRTOS_write( &pdUART1, "DEBUG ** MRSP_ERROR\r\n\0", sizeof("DEBUG ** MRSP_ERROR\r\n\0") );
+				}
 
+				if ( g_strstr("CONNECT", &pos ) == TRUE ) {
+					g_setSocketStatus(SOCKET_OPEN);
+				//	FreeRTOS_write( &pdUART1, "DEBUG ** MRSP_CONNECT\r\n\0", sizeof("DEBUG ** MRSP_CONNECT\r\n\0") );
+				}
+
+				if ( g_strstr("NO CARRIER", &pos ) == TRUE ) {
+					g_setSocketStatus(SOCKET_CLOSED);
+				//	FreeRTOS_write( &pdUART1, "DEBUG ** MRSP_NO CARRIER\r\n\0", sizeof("DEBUG ** MRSP_NO CARRIER\r\n\0") );
+				}
 			}
 		}
 	}
